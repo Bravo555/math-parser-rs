@@ -1,0 +1,9 @@
+[package]
+name = "math-parser-rs"
+version = "0.1.0"
+authors = ["Marcel Guzik <mguzik555@gmail.com>"]
+
+[lib]
+name = "math_parser"
+
+[dependencies]
