@@ -5,6 +5,8 @@ use syntax_tree::SyntaxTree;
 use token::to_tokens;
 
 pub fn eval(text: &str) -> i32 {
+    // TODO: infer notation used
+
     // Build a token list
     let tokens = to_tokens(text);
 

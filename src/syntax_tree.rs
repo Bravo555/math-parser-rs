@@ -34,7 +34,7 @@ impl SyntaxTree {
 
         for token in tokens {
             match token {
-                Token::Digit(digit) => value_queue.push(Node::Value(digit)),
+                Token::Integer(digit) => value_queue.push(Node::Value(digit.parse().unwrap())),
                 Token::Operator(operator) => operator_queue.push(operator),
             }
         }
@@ -70,8 +70,12 @@ mod tests {
     #[test]
     fn ast_two_plus_two() {
         assert_eq!(
-            SyntaxTree::from_tokens(vec![Token::Digit(2), Token::Operator('+'), Token::Digit(2)])
-                .root,
+            SyntaxTree::from_tokens(vec![
+                Token::Integer(2.to_string()),
+                Token::Operator('+'),
+                Token::Integer(2.to_string())
+            ])
+            .root,
             Node::Add(Box::new(Node::Value(2)), Box::new(Node::Value(2)))
         );
     }
@@ -80,12 +84,13 @@ mod tests {
     fn ast_two_plus_two_plus_two() {
         assert_eq!(
             SyntaxTree::from_tokens(vec![
-                Token::Digit(2),
+                Token::Integer(2.to_string()),
                 Token::Operator('+'),
-                Token::Digit(2),
+                Token::Integer(2.to_string()),
                 Token::Operator('+'),
-                Token::Digit(2),
-            ]).root,
+                Token::Integer(2.to_string()),
+            ])
+            .root,
             Node::Add(
                 Box::new(Node::Add(
                     Box::new(Node::Value(2)),
