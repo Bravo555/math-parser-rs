@@ -2,4 +2,3 @@
 So, I tried to make a parser...
 
 So far any sequence of expression with operators of the same precedence should work.
-Also, the numbers can take at most one digit.
