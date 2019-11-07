@@ -1,4 +1,4 @@
-use token::Token;
+use crate::token::Token;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Node {
@@ -22,40 +22,46 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SyntaxTree {
     root: Node,
 }
 
 impl SyntaxTree {
-    pub fn from_tokens(tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
+    pub fn from_tokens(mut tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
         let mut value_queue: Vec<Node> = Vec::new();
-        let mut operator_queue: Vec<char> = Vec::new();
 
-        for token in tokens {
+        while let Some(token) = tokens.pop() {
             match token {
-                Token::Integer(digit) => value_queue.push(Node::Value(digit.parse().unwrap())),
-                Token::Operator(operator) => operator_queue.push(operator),
+                Token::Integer(digit) => value_queue.push(Node::Value(digit)),
+                Token::Operator(operator) => {
+                    if let Some(Token::Integer(rhs)) = tokens.pop() {
+                        let rhs = Node::Value(rhs);
+                        let lhs = value_queue.pop().unwrap();
+
+                        let node = match operator {
+                            '+' => Node::Add(Box::new(lhs), Box::new(rhs)),
+                            '-' => Node::Subtract(Box::new(lhs), Box::new(rhs)),
+                            '*' => Node::Multiply(Box::new(lhs), Box::new(rhs)),
+                            '/' => Node::Divide(Box::new(lhs), Box::new(rhs)),
+                            _ => return Err(ParseError),
+                        };
+                        value_queue.push(node);
+                    } else {
+                        // we have an operator but no right hand side value to match
+                        return Err(ParseError);
+                    }
+                }
             }
         }
 
-        // We assume there are no syntax errors (for now)
-        while let Some(operator) = operator_queue.pop() {
-            // All operators for now take two arguments
-            let (lhs, rhs) = (value_queue.pop().unwrap(), value_queue.pop().unwrap());
-
-            let node = match operator {
-                '+' => Node::Add(Box::new(lhs), Box::new(rhs)),
-                '-' => Node::Subtract(Box::new(lhs), Box::new(rhs)),
-                '*' => Node::Multiply(Box::new(lhs), Box::new(rhs)),
-                '/' => Node::Divide(Box::new(lhs), Box::new(rhs)),
-                _ => return Err(ParseError),
-            };
-
-            value_queue.push(node);
-        }
-
         let root = value_queue.pop().unwrap();
+
+        // As we consume by operators, we know there's something wrong when there're
+        // still values left when we're done with all of them
+        if value_queue.len() > 0 {
+            return Err(ParseError);
+        }
         Ok(SyntaxTree { root })
     }
 
@@ -64,7 +70,7 @@ impl SyntaxTree {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ParseError;
 
 #[cfg(test)]
@@ -74,9 +80,9 @@ mod tests {
     fn ast_two_plus_two() {
         assert_eq!(
             SyntaxTree::from_tokens(vec![
-                Token::Integer(2.to_string()),
+                Token::Integer(2),
                 Token::Operator('+'),
-                Token::Integer(2.to_string())
+                Token::Integer(2)
             ])
             .unwrap()
             .root,
@@ -88,11 +94,11 @@ mod tests {
     fn ast_two_plus_two_plus_two() {
         assert_eq!(
             SyntaxTree::from_tokens(vec![
-                Token::Integer(2.to_string()),
+                Token::Integer(2),
                 Token::Operator('+'),
-                Token::Integer(2.to_string()),
+                Token::Integer(2),
                 Token::Operator('+'),
-                Token::Integer(2.to_string()),
+                Token::Integer(2),
             ])
             .unwrap()
             .root,
@@ -103,6 +109,35 @@ mod tests {
                 )),
                 Box::new(Node::Value(2)),
             )
+        );
+    }
+
+    #[test]
+    fn errors_for_too_much_values() {
+        assert_eq!(
+            SyntaxTree::from_tokens(vec![
+                Token::Integer(2),
+                Token::Operator('+'),
+                Token::Integer(2),
+                Token::Integer(2),
+                Token::Integer(2),
+                Token::Integer(2),
+            ]),
+            Err(ParseError)
+        );
+    }
+
+    #[test]
+    fn errors_for_too_much_operators() {
+        assert_eq!(
+            SyntaxTree::from_tokens(vec![
+                Token::Integer(2),
+                Token::Operator('+'),
+                Token::Operator('+'),
+                Token::Integer(2),
+                Token::Integer(2),
+            ]),
+            Err(ParseError)
         );
     }
 }

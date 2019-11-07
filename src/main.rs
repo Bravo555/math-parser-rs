@@ -9,6 +9,6 @@ fn main() {
         stdin().read_line(&mut input).unwrap();
         let input = input.trim();
 
-        println!("{}", eval(input));
+        println!("{:?}", eval(input));
     }
 }
