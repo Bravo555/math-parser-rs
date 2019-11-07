@@ -28,7 +28,7 @@ pub struct SyntaxTree {
 }
 
 impl SyntaxTree {
-    pub fn from_tokens(tokens: Vec<Token>) -> SyntaxTree {
+    pub fn from_tokens(tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
         let mut value_queue: Vec<Node> = Vec::new();
         let mut operator_queue: Vec<char> = Vec::new();
 
@@ -49,20 +49,23 @@ impl SyntaxTree {
                 '-' => Node::Subtract(Box::new(lhs), Box::new(rhs)),
                 '*' => Node::Multiply(Box::new(lhs), Box::new(rhs)),
                 '/' => Node::Divide(Box::new(lhs), Box::new(rhs)),
-                _ => panic!("Unknown operator!"),
+                _ => return Err(ParseError),
             };
 
             value_queue.push(node);
         }
 
         let root = value_queue.pop().unwrap();
-        SyntaxTree { root }
+        Ok(SyntaxTree { root })
     }
 
     pub fn evaluate(self) -> i32 {
         self.root.evaluate()
     }
 }
+
+#[derive(Debug)]
+pub struct ParseError;
 
 #[cfg(test)]
 mod tests {
@@ -75,6 +78,7 @@ mod tests {
                 Token::Operator('+'),
                 Token::Integer(2.to_string())
             ])
+            .unwrap()
             .root,
             Node::Add(Box::new(Node::Value(2)), Box::new(Node::Value(2)))
         );
@@ -90,6 +94,7 @@ mod tests {
                 Token::Operator('+'),
                 Token::Integer(2.to_string()),
             ])
+            .unwrap()
             .root,
             Node::Add(
                 Box::new(Node::Add(

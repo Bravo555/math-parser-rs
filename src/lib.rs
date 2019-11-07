@@ -11,7 +11,7 @@ pub fn eval(text: &str) -> i32 {
     let tokens = to_tokens(text);
 
     // Build a syntax tree
-    let tree = SyntaxTree::from_tokens(tokens);
+    let tree = SyntaxTree::from_tokens(tokens).unwrap();
     println!("{:?}", tree);
     // Evaluate the syntax tree
     tree.evaluate()

@@ -6,45 +6,41 @@ pub enum Token {
 
 pub fn to_tokens(text: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
-    text.chars().for_each(|c| {
-        if let Some(digit) = c.to_digit(10) {
-            // if previous is a digit add to it and push back
-            let prev = tokens.pop();
-            if let Some(token) = prev {
-                match token {
-                    Token::Operator(_) => {
-                        tokens.push(token);
-                        tokens.push(Token::Integer(digit.to_string()));
-                    }
-                    Token::Integer(mut prev) => {
-                        prev.push(c);
-                        tokens.push(Token::Integer(prev));
-                    }
-                }
-            } else {
-                tokens.push(Token::Integer(digit.to_string()));
-            }
-        // else just push new digit
-        } else {
-            match c {
-                '+' => tokens.push(Token::Operator('+')),
-                '-' => tokens.push(Token::Operator('-')),
-                '*' => tokens.push(Token::Operator('*')),
-                '/' => tokens.push(Token::Operator('/')),
-                _ => (),
-            }
-        }
-    });
+
+    let mut text = text;
+    while let Some((token, remainder)) = parse_token(text) {
+        text = remainder;
+        tokens.push(token);
+    }
 
     tokens
 }
 
+fn parse_token(text: &str) -> Option<(Token, &str)> {
+    let mut parsed: Vec<char> = Vec::new();
+    let mut chars = text.chars();
+
+    // skip initial whitespaces, if present
+    match chars.by_ref().skip_while(|c| c.is_whitespace()).next() {
+        Some(c) => match c {
+            '0'..='9' => {
+                parsed.push(c);
+                parsed.extend(chars.by_ref().take_while(|c| c.is_digit(10)));
+                Some((Token::Integer(parsed.into_iter().collect()), chars.as_str()))
+            }
+            '+' | '-' | '*' | '/' => Some((Token::Operator(c), chars.as_str())),
+            _ => None,
+        },
+        None => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use self::Token::*;
     use super::*;
     #[test]
     fn two_plus_two() {
-        use self::Token::*;
         assert_eq!(
             to_tokens("2 + 2"),
             vec![
@@ -57,13 +53,40 @@ mod tests {
 
     #[test]
     fn multi_integer_numbers() {
-        use self::Token::*;
         assert_eq!(
             to_tokens("101 + 202"),
             vec![
                 Integer(101.to_string()),
                 Operator('+'),
                 Integer(202.to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn space_separated_tokens() {
+        assert_eq!(
+            to_tokens("2 + 2 + 2 2 2"),
+            vec![
+                Integer(2.to_string()),
+                Operator('+'),
+                Integer(2.to_string()),
+                Operator('+'),
+                Integer(2.to_string()),
+                Integer(2.to_string()),
+                Integer(2.to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn handle_whitespace() {
+        assert_eq!(
+            to_tokens("    231\n    \t+\n    1312    "),
+            vec![
+                Integer(231.to_string()),
+                Operator('+'),
+                Integer(1312.to_string())
             ]
         );
     }
