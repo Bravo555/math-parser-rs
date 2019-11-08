@@ -1,19 +1,34 @@
+use std::iter::Iterator;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     Operator(char),
     Integer(i32),
 }
 
-pub fn to_tokens(text: &str) -> Vec<Token> {
-    let mut tokens: Vec<Token> = Vec::new();
+struct Tokens<'a> {
+    text: &'a str,
+}
 
-    let mut text = text;
-    while let Some((token, remainder)) = parse_token(text) {
-        text = remainder;
-        tokens.push(token);
+impl<'a> Tokens<'a> {
+    fn new(text: &str) -> Tokens {
+        Tokens { text }
     }
+}
 
-    tokens
+impl<'a> Iterator for Tokens<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        parse_token(self.text).and_then(|(token, remainder)| {
+            self.text = remainder;
+            Some(token)
+        })
+    }
+}
+
+pub fn to_tokens(text: &str) -> Vec<Token> {
+    Tokens::new(text).collect()
 }
 
 fn parse_token(text: &str) -> Option<(Token, &str)> {
