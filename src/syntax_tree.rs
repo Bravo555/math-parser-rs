@@ -28,14 +28,16 @@ pub struct SyntaxTree {
 }
 
 impl SyntaxTree {
-    pub fn from_tokens(mut tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
+    pub fn from_tokens(tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
         let mut value_queue: Vec<Node> = Vec::new();
+        let mut tokens = tokens.into_iter();
 
-        while let Some(token) = tokens.pop() {
+        // Can't use `for_each` because when parsing operator, we lookahead for a next value
+        while let Some(token) = tokens.next() {
             match token {
                 Token::Integer(digit) => value_queue.push(Node::Value(digit)),
                 Token::Operator(operator) => {
-                    if let Some(Token::Integer(rhs)) = tokens.pop() {
+                    if let Some(Token::Integer(rhs)) = tokens.next() {
                         let rhs = Node::Value(rhs);
                         let lhs = value_queue.pop().unwrap();
 
@@ -139,5 +141,27 @@ mod tests {
             ]),
             Err(ParseError)
         );
+    }
+
+    #[test]
+    fn test_left_associativity_operators() {
+        assert_eq!(
+            SyntaxTree::from_tokens(vec![
+                Token::Integer(5),
+                Token::Operator('-'),
+                Token::Integer(3),
+                Token::Operator('-'),
+                Token::Integer(2),
+            ]),
+            Ok(SyntaxTree {
+                root: Node::Subtract(
+                    Box::new(Node::Subtract(
+                        Box::new(Node::Value(5)),
+                        Box::new(Node::Value(3))
+                    )),
+                    Box::new(Node::Value(2))
+                )
+            })
+        )
     }
 }

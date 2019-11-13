@@ -6,7 +6,7 @@ pub enum Token {
     Integer(i32),
 }
 
-struct Tokens<'a> {
+pub struct Tokens<'a> {
     text: &'a str,
 }
 
@@ -32,25 +32,26 @@ pub fn to_tokens(text: &str) -> Vec<Token> {
 }
 
 fn parse_token(text: &str) -> Option<(Token, &str)> {
-    let mut parsed: Vec<char> = Vec::new();
     let mut chars = text.chars();
 
     // skip initial whitespaces, if present
-    match chars.by_ref().skip_while(|c| c.is_whitespace()).next() {
-        Some(c) => match c {
+    chars
+        .by_ref()
+        .skip_while(|c| c.is_whitespace())
+        .next()
+        .map(|c| match c {
             '0'..='9' => {
+                let mut parsed: Vec<char> = Vec::new();
                 parsed.push(c);
                 parsed.extend(chars.by_ref().take_while(|c| c.is_digit(10)));
-                Some((
+                (
                     Token::Integer(parsed.into_iter().collect::<String>().parse().unwrap()),
                     chars.as_str(),
-                ))
+                )
             }
-            '+' | '-' | '*' | '/' => Some((Token::Operator(c), chars.as_str())),
-            _ => None,
-        },
-        None => None,
-    }
+            '+' | '-' | '*' | '/' => (Token::Operator(c), chars.as_str()),
+            _ => panic!("Unexpected token: {}", c),
+        })
 }
 
 #[cfg(test)]
