@@ -29,42 +29,9 @@ pub struct SyntaxTree {
 
 impl SyntaxTree {
     pub fn from_tokens(tokens: Vec<Token>) -> Result<SyntaxTree, ParseError> {
-        let mut value_queue: Vec<Node> = Vec::new();
-        let mut tokens = tokens.into_iter();
+        let tokens = tokens.into_iter();
 
-        // Can't use `for_each` because when parsing operator, we lookahead for a next value
-        while let Some(token) = tokens.next() {
-            match token {
-                Token::Integer(digit) => value_queue.push(Node::Value(digit)),
-                Token::Operator(operator) => {
-                    if let Some(Token::Integer(rhs)) = tokens.next() {
-                        let rhs = Node::Value(rhs);
-                        let lhs = value_queue.pop().unwrap();
-
-                        let node = match operator {
-                            '+' => Node::Add(Box::new(lhs), Box::new(rhs)),
-                            '-' => Node::Subtract(Box::new(lhs), Box::new(rhs)),
-                            '*' => Node::Multiply(Box::new(lhs), Box::new(rhs)),
-                            '/' => Node::Divide(Box::new(lhs), Box::new(rhs)),
-                            _ => return Err(ParseError),
-                        };
-                        value_queue.push(node);
-                    } else {
-                        // we have an operator but no right hand side value to match
-                        return Err(ParseError);
-                    }
-                }
-            }
-        }
-
-        let root = value_queue.pop().unwrap();
-
-        // As we consume by operators, we know there's something wrong when there're
-        // still values left when we're done with all of them
-        if value_queue.len() > 0 {
-            return Err(ParseError);
-        }
-        Ok(SyntaxTree { root })
+        parse_expression(tokens).map(|root| SyntaxTree { root })
     }
 
     pub fn evaluate(self) -> i32 {
@@ -72,8 +39,63 @@ impl SyntaxTree {
     }
 }
 
+fn parse_expression(mut tokens: impl Iterator<Item = Token>) -> Result<Node, ParseError> {
+    let mut value_queue: Vec<Node> = Vec::new();
+
+    while let Some(token) = tokens.next() {
+        match token {
+            Token::Integer(digit) => value_queue.push(Node::Value(digit)),
+            Token::Operator(operator) => {
+                // on either side of operator there is an expression
+                let inner_tokens = tokens.by_ref().take_while(|t| *t != Token::Rparen);
+                match parse_expression(inner_tokens) {
+                    Ok(rhs) => {
+                        let lhs = value_queue.pop().unwrap();
+
+                        let node = match operator {
+                            '+' => Node::Add(Box::new(lhs), Box::new(rhs)),
+                            '-' => Node::Subtract(Box::new(lhs), Box::new(rhs)),
+                            '*' => Node::Multiply(Box::new(lhs), Box::new(rhs)),
+                            '/' => Node::Divide(Box::new(lhs), Box::new(rhs)),
+                            _ => panic!("unknown operator"),
+                        };
+                        value_queue.push(node);
+                    }
+                    Err(_) => {
+                        return Err(ParseError::UnexpectedToken);
+                    }
+                }
+            }
+            Token::Lparen => {
+                let inner_tokens: Vec<Token> = tokens
+                    .by_ref()
+                    .take_while(|token| *token != Token::Rparen)
+                    .collect();
+                assert_eq!(tokens.next(), Some(Token::Rparen));
+                if let Ok(inner_expression) = SyntaxTree::from_tokens(inner_tokens) {
+                    value_queue.push(inner_expression.root);
+                }
+            }
+            Token::Rparen => return Err(ParseError::UnexpectedToken),
+        }
+    }
+
+    let root = value_queue.pop().unwrap();
+
+    // As we consume by operators, we know there's something wrong when there're
+    // still values left when we're done with all of them
+    if value_queue.len() > 0 {
+        return Err(ParseError::TooManyValues);
+    }
+
+    Ok(root)
+}
+
 #[derive(Debug, PartialEq)]
-pub struct ParseError;
+pub enum ParseError {
+    TooManyValues,
+    UnexpectedToken,
+}
 
 #[cfg(test)]
 mod tests {
@@ -125,7 +147,7 @@ mod tests {
                 Token::Integer(2),
                 Token::Integer(2),
             ]),
-            Err(ParseError)
+            Err(ParseError::TooManyValues)
         );
     }
 
@@ -139,7 +161,7 @@ mod tests {
                 Token::Integer(2),
                 Token::Integer(2),
             ]),
-            Err(ParseError)
+            Err(ParseError::UnexpectedToken)
         );
     }
 
@@ -163,5 +185,23 @@ mod tests {
                 )
             })
         )
+    }
+
+    #[test]
+    fn test_paren_associativity() {
+        assert_eq!(
+            SyntaxTree::from_tokens(vec![
+                Token::Integer(5),
+                Token::Operator('+'),
+                Token::Lparen,
+                Token::Integer(3),
+                Token::Operator('-'),
+                Token::Integer(2),
+                Token::Rparen,
+            ])
+            .unwrap()
+            .evaluate(),
+            6
+        );
     }
 }

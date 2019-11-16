@@ -4,6 +4,8 @@ use std::iter::Iterator;
 pub enum Token {
     Operator(char),
     Integer(i32),
+    Lparen,
+    Rparen,
 }
 
 pub struct Tokens<'a> {
@@ -50,6 +52,7 @@ fn parse_token(text: &str) -> Option<(Token, &str)> {
                 )
             }
             '+' | '-' | '*' | '/' => (Token::Operator(c), chars.as_str()),
+            '(' => (Token::Lparen, chars.as_str())
             _ => panic!("Unexpected token: {}", c),
         })
 }

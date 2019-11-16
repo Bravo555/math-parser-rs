@@ -1,3 +1,5 @@
+#![type_length_limit = "10000"]
+
 mod syntax_tree;
 mod token;
 
