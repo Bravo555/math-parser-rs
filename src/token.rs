@@ -22,36 +22,44 @@ impl<'a> Iterator for Tokens<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         parse_token(self.text).and_then(|(token, remainder)| {
             self.text = remainder;
+            println!("{}", remainder);
             Some(token)
         })
     }
 }
 
 pub fn to_tokens(text: &str) -> Vec<Token> {
-    Tokens::new(text).collect()
+    let mut tokens: Vec<Token> = Vec::new();
+    let mut chars = text.chars().skip_while(|c| c.is_whitespace()).peekable();
+
+    while let Some(c) = chars.peek() {
+        match c {
+            '0'..='9' => {
+                let mut parsed: Vec<char> = vec![chars.next().unwrap()];
+                while let Some(next_char) = chars.peek() {
+                    if !next_char.is_digit(10) {
+                        break;
+                    }
+                    parsed.push(chars.next().unwrap());
+                }
+                tokens.push(Token::Integer(
+                    parsed.iter().collect::<String>().parse::<i32>().unwrap(),
+                ));
+            }
+            '+' | '-' | '*' | '/' => tokens.push(Token::Operator(chars.next().unwrap())),
+            _ if c.is_whitespace() => {
+                chars.next();
+            }
+            _ => panic!("wrong token"),
+        }
+    }
+    tokens
 }
 
 fn parse_token(text: &str) -> Option<(Token, &str)> {
-    let mut chars = text.chars();
-
     // skip initial whitespaces, if present
-    chars
-        .by_ref()
-        .skip_while(|c| c.is_whitespace())
-        .next()
-        .map(|c| match c {
-            '0'..='9' => {
-                let mut parsed: Vec<char> = Vec::new();
-                parsed.push(c);
-                parsed.extend(chars.by_ref().take_while(|c| c.is_digit(10)));
-                (
-                    Token::Integer(parsed.into_iter().collect::<String>().parse().unwrap()),
-                    chars.as_str(),
-                )
-            }
-            '+' | '-' | '*' | '/' => (Token::Operator(c), chars.as_str()),
-            _ => panic!("Unexpected token: {}", c),
-        })
+
+    None
 }
 
 #[cfg(test)]
@@ -96,5 +104,21 @@ mod tests {
             to_tokens("    231\n    \t+\n    1312    "),
             vec![Integer(231), Operator('+'), Integer(1312)]
         );
+    }
+
+    #[test]
+    fn works_for_not_space_separated_input() {
+        assert_eq!(
+            to_tokens("2+2+2+2"),
+            vec![
+                Integer(2),
+                Operator('+'),
+                Integer(2),
+                Operator('+'),
+                Integer(2),
+                Operator('+'),
+                Integer(2),
+            ]
+        )
     }
 }
